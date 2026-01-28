@@ -5,3 +5,5 @@ import torchvision
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import time
+
+# Define transformations for the training and test sets
