@@ -18,4 +18,6 @@ transform=transforms.Compose([transforms.ToTensor(),
                               transforms.Normalize((0.5,), (0.5,))])
 # Load the MNIST dataset
 # train_dataset = torchvision.datasets.FashionMNIST(root='./data', train=True, transform=transform, download=True)
-test_dataset = torchvision.datasets.FashionMNIST(root='./data', train=False, transform=transform)                 
+test_dataset = torchvision.datasets.FashionMNIST(root='./data', train=False, transform=transform)   
+
+#train loader
