@@ -10,7 +10,7 @@ import time
 device=torch.device('cuda' if torch.cuda.is_available() else'cpu')
 batch_size=64
 learning_rate=0.001
-epochs=12
+epochs=10
 hidden_state=128
 num_classes=10
 
