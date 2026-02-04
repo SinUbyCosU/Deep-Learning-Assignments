@@ -125,7 +125,7 @@ with open(f'activation_results_{timestamp}.json', 'w') as f:
         }
     json.dump(json_results, f, indent=4)
 
-print(f"\nResults saved to: activation_results_{timestamp}.json")
+print(f"\nResults:activation_results_{timestamp}.json")
 
 # Create comparison summary
 comparison_data = []
