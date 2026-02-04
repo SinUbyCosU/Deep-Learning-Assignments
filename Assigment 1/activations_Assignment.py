@@ -22,3 +22,20 @@ test_dataset = torchvision.datasets.FashionMNIST(root='./data', train=False, tra
 
 #train loader
 train_loader = torch.utils.data.DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True)
+test_loader=torch.utils.data.DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False)
+#Modular mlp architecture 
+class MLP(nn.Module):
+    def __init__(self,input_size,hidden_size,output_size,activation_fn):
+        super(MLP,self).__init__()
+        self.flatten=nn.Flatten()
+        self.network=nn.Sequential(
+            nn.Linear(input_size,hidden_size),
+            activation_fn,
+            nn.Linear(hidden_size,output_size),
+            activation_fn,
+            nn.Linear(output_size,output_size)
+        )
+    def forward(self,x):
+        x=self.flatten(x)
+        out=self.network(x)
+        return out  
