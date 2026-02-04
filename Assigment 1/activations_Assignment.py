@@ -5,6 +5,9 @@ import torchvision
 import torchvision.transforms as transforms
 import matplotlib.pyplot as plt
 import time
+import json
+import pandas as pd
+from datetime import datetime
 
 # Define transformations for the training and test sets
 device=torch.device('cuda' if torch.cuda.is_available() else'cpu')
@@ -80,7 +83,13 @@ def train_and_validate(name, activation_fn):
         stats['train_loss'].append(avg_loss)
         stats['val_acc'].append(acc)
         print(f"Epoch {epoch+1}: Loss = {avg_loss:.4f}, Val Acc = {acc:.2f}%")
-        
+    
+    # Store final metrics
+    stats['final_loss'] = stats['train_loss'][-1]
+    stats['final_acc'] = stats['val_acc'][-1]
+    stats['best_acc'] = max(stats['val_acc'])
+    stats['best_epoch'] = stats['val_acc'].index(stats['best_acc']) + 1
+    
     return stats
 
 # 5. Execute Experiments
@@ -100,6 +109,45 @@ activations = {
 }
 
 results = {name: train_and_validate(name, fn) for name, fn in activations.items()}
+
+# Save results to JSON file
+timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+with open(f'activation_results_{timestamp}.json', 'w') as f:
+    json_results = {}
+    for name, stats in results.items():
+        json_results[name] = {
+            'train_loss': stats['train_loss'],
+            'val_acc': stats['val_acc'],
+            'final_loss': stats['final_loss'],
+            'final_acc': stats['final_acc'],
+            'best_acc': stats['best_acc'],
+            'best_epoch': stats['best_epoch']
+        }
+    json.dump(json_results, f, indent=4)
+
+print(f"\nResults saved to: activation_results_{timestamp}.json")
+
+# Create comparison summary
+comparison_data = []
+for name, stats in results.items():
+    comparison_data.append({
+        'Activation': name,
+        'Final Loss': f"{stats['final_loss']:.4f}",
+        'Final Accuracy': f"{stats['final_acc']:.2f}%",
+        'Best Accuracy': f"{stats['best_acc']:.2f}%",
+        'Best Epoch': stats['best_epoch']
+    })
+
+df = pd.DataFrame(comparison_data)
+df = df.sort_values('Best Accuracy', ascending=False, key=lambda x: x.str.rstrip('%').astype(float))
+df.to_csv(f'activation_comparison_{timestamp}.csv', index=False)
+
+print("\n" + "="*80)
+print("ACTIVATION FUNCTIONS COMPARISON SUMMARY")
+print("="*80)
+print(df.to_string(index=False))
+print("="*80)
+print(f"\nComparison table saved to: activation_comparison_{timestamp}.csv\n")
 
 # 6. Visualization
 plt.figure(figsize=(14, 6))
