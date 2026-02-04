@@ -109,7 +109,7 @@ plt.subplot(1, 2, 1)
 for name, data in results.items():
     plt.plot(range(1, epochs+1), data['train_loss'], label=name, marker='o')
 plt.title('Training Loss Comparison')
-plt.xlabel('Epochs')
+plt.xlabel('epochs')
 plt.ylabel('Loss')
 plt.legend()
 
