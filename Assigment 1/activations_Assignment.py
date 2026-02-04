@@ -142,11 +142,8 @@ df = pd.DataFrame(comparison_data)
 df = df.sort_values('Best Accuracy', ascending=False, key=lambda x: x.str.rstrip('%').astype(float))
 df.to_csv(f'activation_comparison_{timestamp}.csv', index=False)
 
-print("\n" + "="*80)
-print("ACTIVATION FUNCTIONS COMPARISON SUMMARY")
-print("="*80)
+
 print(df.to_string(index=False))
-print("="*80)
 print(f"\nComparison table saved to: activation_comparison_{timestamp}.csv\n")
 
 # 6. Visualization
