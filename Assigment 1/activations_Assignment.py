@@ -43,7 +43,7 @@ class MLP(nn.Module):
 # 4. Training and Validation Logic
 def train_and_validate(name, activation_fn):
     print(f"\nTraining with {name} activation fn")
-    model = MLP(activation_fn).to(device)
+    model = MLP(input_size=784, hidden_size=hidden_state, output_size=num_classes, activation_fn=activation_fn).to(device)
     criterion = nn.CrossEntropyLoss()
     optimizer = optim.Adam(model.parameters(), lr=learning_rate)
     
