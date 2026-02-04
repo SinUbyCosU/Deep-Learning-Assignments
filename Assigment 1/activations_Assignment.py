@@ -169,6 +169,5 @@ plt.title('Validation Accuracy Comparison')
 plt.xlabel('epochs')
 plt.ylabel('acc)')
 plt.legend()
-
 plt.tight_layout()
 plt.show()
