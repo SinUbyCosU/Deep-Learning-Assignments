@@ -10,4 +10,10 @@ class CorruptDataset(Dataset):
         self.base_dataset=base_dataset
         self.corruption_name=corruption_name
         self.severity=severity
-        
+    def __len__(self):
+        return len(self.base_dataset)
+
+    def __getitem__(self,idx):
+        img, label=self.base_dataset[idx]
+        if self.corruption_name:
+            
