@@ -18,4 +18,5 @@ class CorruptDataset(Dataset):
         if self.corruption_name:
             img_np=np.array(img)
             corrupted_img=corrupt(img)
+            img=transforms.ToPILImage()(corrupted_img)
         
