@@ -15,5 +15,5 @@ class CorruptDataset(Dataset):
 
     def __getitem__(self,idx):
         img, label=self.base_dataset[idx]
-        if
+        
         
