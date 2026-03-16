@@ -15,5 +15,7 @@ class CorruptDataset(Dataset):
 
     def __getitem__(self,idx):
         img, label=self.base_dataset[idx]
-        
+        if self.corruption_name:
+            img_np=np.array(img)
+            corrupted_img=corrupt(img)
         
