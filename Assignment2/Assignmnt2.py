@@ -21,9 +21,9 @@ import json
 import math
 import os
 import random
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, Iterable, List, Optional, Sequence, Tuple
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -111,6 +111,9 @@ def build_mlp(num_classes: int, image_size: int = 32) -> nn.Module:
 
 MODEL_FACTORIES["mlp"] = lambda num_classes: build_mlp(num_classes)
 
+BENCHMARK_DATASETS = ("cifar10", "fmnist", "imagenet100")
+BENCHMARK_MODELS = ("vgg16", "resnet18", "convnext_tiny", "vit_b_16")
+
 
 @dataclass
 class ExperimentConfig:
@@ -126,6 +129,7 @@ class ExperimentConfig:
 	use_corrupted_validation: bool = False
 	optimize_validation_corruption: bool = False
 	feature_hook: Optional[str] = None
+	feature_noise_std: float = 0.05
 	log_dir: str = "results"
 	split_dir: str = "splits"
 	data_dir: str = "data"
@@ -144,14 +148,66 @@ def set_seed(seed: int) -> None:
 	random.seed(seed)
 	np.random.seed(seed)
 	torch.manual_seed(seed)
-	torch.cuda.manual_seed_all(seed)
-	torch.backends.cudnn.deterministic = True
-	torch.backends.cudnn.benchmark = False
+	if torch.cuda.is_available():
+		torch.cuda.manual_seed_all(seed)
+	if torch.backends.cudnn.is_available():
+		torch.backends.cudnn.deterministic = True
+		torch.backends.cudnn.benchmark = False
 
 
 def ensure_dir(path: Path) -> Path:
 	path.mkdir(parents=True, exist_ok=True)
 	return path
+
+
+def resolve_module(root: nn.Module, dotted_path: Optional[str]) -> Optional[nn.Module]:
+	if not dotted_path:
+		return None
+	current: Optional[nn.Module] = root
+	for chunk in dotted_path.split("."):
+		if current is None:
+			return None
+		if chunk.isdigit() and hasattr(current, "__getitem__"):
+			try:
+				current = current[int(chunk)]  # type: ignore[index]
+			except (IndexError, TypeError):
+				return None
+		else:
+			current = getattr(current, chunk, None)
+	return current
+
+
+def _apply_feature_noise(output: Any, noise_std: float) -> Any:
+	if noise_std <= 0:
+		return output
+	if torch.is_tensor(output):
+		return output + torch.randn_like(output) * noise_std
+	if isinstance(output, tuple):
+		return tuple(_apply_feature_noise(item, noise_std) if torch.is_tensor(item) else item for item in output)
+	if isinstance(output, list):
+		return [
+			_apply_feature_noise(item, noise_std) if torch.is_tensor(item) else item
+			for item in output
+		]
+	return output
+
+
+def register_feature_perturbation(model: nn.Module, layer_name: str, noise_std: float) -> nn.Module:
+	layer = resolve_module(model, layer_name)
+	if layer is None:
+		raise ValueError(f"Could not find layer '{layer_name}' on model {model.__class__.__name__}")
+	setattr(model, "_feature_hook_layer", layer)
+	if noise_std <= 0:
+		return layer
+
+	def hook(_module, _inp, output):
+		if not model.training:
+			return output
+		return _apply_feature_noise(output, noise_std)
+
+	handle = layer.register_forward_hook(hook)
+	setattr(model, "_feature_hook_handle", handle)
+	return layer
 
 
 def tensor_to_uint8(image: Tensor, mean: Sequence[float], std: Sequence[float]) -> np.ndarray:
@@ -316,6 +372,8 @@ def build_model(config: ExperimentConfig) -> nn.Module:
 	if config.model not in MODEL_FACTORIES:
 		raise ValueError(f"Unknown model {config.model}")
 	model = MODEL_FACTORIES[config.model](stats["num_classes"])
+	if config.feature_hook:
+		register_feature_perturbation(model, config.feature_hook, config.feature_noise_std)
 	return model
 
 
@@ -426,7 +484,10 @@ def plot_tsne(
 	out_path: Path,
 	title: str,
 ) -> None:
+	if embeddings.size == 0 or embeddings.shape[0] < 3:
+		return
 	perplexity = min(30, max(5, embeddings.shape[0] // 5))
+	perplexity = max(2, min(perplexity, embeddings.shape[0] - 1))
 	tsne = TSNE(n_components=2, perplexity=perplexity, init="random", learning_rate="auto", n_iter=1000)
 	reduced = tsne.fit_transform(embeddings)
 	plt.figure(figsize=(6, 5))
@@ -460,7 +521,8 @@ def capture_feature_maps(
 	fmap = activations[0]
 	if fmap.ndim < 4:
 		return
-	num_maps = min(16, fmap.shape[1])
+	fmap = fmap[0]
+	num_maps = min(16, fmap.shape[0])
 	grid = fmap[: num_maps].numpy()
 	fig, axes = plt.subplots(4, 4, figsize=(6, 6))
 	for idx, ax in enumerate(axes.flat):
@@ -551,25 +613,38 @@ def run_experiment(config: ExperimentConfig) -> None:
 	if best_state:
 		model.load_state_dict(best_state)
 	_, test_acc = evaluate(model, test_loader, criterion, config.device)
-	corruption_results = evaluate_with_corruptions(
-		model,
-		test_loader,
-		config.device,
-		stats["mean"],
-		stats["std"],
-		config.corruption_types or CORRUPTION_SET,
-		config.corruption_severity,
-	)
+	corruption_candidates = config.corruption_types or CORRUPTION_SET
+	corruption_results: Optional[Dict[str, float]] = None
+	if corruption_candidates:
+		if apply_image_corruption is None:
+			raise ImportError(
+				"imagecorruptions is required to measure corrupted-set accuracy. Install it via pip install imagecorruptions."
+			)
+		corruption_results = evaluate_with_corruptions(
+			model,
+			test_loader,
+			config.device,
+			stats["mean"],
+			stats["std"],
+			corruption_candidates,
+			config.corruption_severity,
+		)
 	log_metrics(log_dir, config, train_metrics, val_metrics, test_acc, corruption_results)
 
 	embeddings, labels = collect_features(model, val_loader, config.device)
 	plot_tsne(embeddings, labels, log_dir / f"tsne_{config.dataset}_{config.model}.png", "Validation t-SNE")
-	sample_images, _ = next(iter(test_loader))
-	layer = next(model.children())
+	try:
+		sample_images, _ = next(iter(test_loader))
+	except StopIteration:
+		return
+	viz_layer = getattr(model, "_feature_hook_layer", None)
+	if viz_layer is None:
+		first_child = next(model.children(), None)
+		viz_layer = first_child if isinstance(first_child, nn.Module) else model
 	capture_feature_maps(
 		model,
 		sample_images[:8],
-		layer if isinstance(layer, nn.Module) else model,
+		viz_layer,
 		config.device,
 		log_dir / f"feature_maps_{config.dataset}_{config.model}.png",
 	)
@@ -618,6 +693,16 @@ def dataclass_replace(config: ExperimentConfig, **kwargs) -> ExperimentConfig:
 	return ExperimentConfig(**data)
 
 
+def run_full_suite(config: ExperimentConfig) -> None:
+	for dataset_name in BENCHMARK_DATASETS:
+		if dataset_name == "imagenet100" and not config.imagenet_root:
+			raise ValueError("ImageNet-100 runs require --imagenet_root pointing to the dataset")
+		for model_name in BENCHMARK_MODELS:
+			combo_cfg = dataclass_replace(config, dataset=dataset_name, model=model_name)
+			print(f"[Suite] Training {model_name} on {dataset_name}")
+			run_experiment(combo_cfg)
+
+
 def parse_args() -> argparse.Namespace:
 	parser = argparse.ArgumentParser(description="Robustness assignment runner")
 	parser.add_argument("--dataset", choices=list(DATASET_STATS.keys()), required=True)
@@ -636,6 +721,18 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument("--optimize_validation_corruption", action="store_true")
 	parser.add_argument("--corruption_types", nargs="*", default=None)
 	parser.add_argument("--corruption_severity", type=int, default=2)
+	parser.add_argument(
+		"--feature_hook",
+		type=str,
+		default=None,
+		help="Dotted path to the layer whose activations should receive Gaussian noise",
+	)
+	parser.add_argument(
+		"--feature_noise_std",
+		type=float,
+		default=0.05,
+		help="Standard deviation for the Gaussian noise injected at --feature_hook",
+	)
 	parser.add_argument("--imagenet_root", type=str, default=None)
 	parser.add_argument("--log_dir", type=str, default="results")
 	parser.add_argument("--split_dir", type=str, default="splits")
@@ -643,6 +740,7 @@ def parse_args() -> argparse.Namespace:
 	parser.add_argument("--num_workers", type=int, default=4)
 	parser.add_argument("--seed", type=int, default=42)
 	parser.add_argument("--mlp_validation_suite", action="store_true")
+	parser.add_argument("--full_suite", action="store_true")
 	return parser.parse_args()
 
 
@@ -658,6 +756,8 @@ def main() -> None:
 		val_split=args.val_split,
 		corruption_types=args.corruption_types,
 		corruption_severity=args.corruption_severity,
+		feature_hook=args.feature_hook,
+		feature_noise_std=args.feature_noise_std,
 		use_corrupted_validation=args.use_corrupted_validation,
 		optimize_validation_corruption=args.optimize_validation_corruption,
 		log_dir=args.log_dir,
@@ -669,6 +769,8 @@ def main() -> None:
 	)
 	if args.mlp_validation_suite:
 		run_mlp_validation_regimes(config)
+	elif args.full_suite:
+		run_full_suite(config)
 	else:
 		run_experiment(config)
 
