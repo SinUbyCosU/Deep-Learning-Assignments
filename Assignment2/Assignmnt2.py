@@ -650,13 +650,19 @@ def run_experiment(config: ExperimentConfig) -> None:
 	)
 
 
-def run_mlp_validation_regimes(config: ExperimentConfig) -> None:
+def run_mlp_validation_regimes(
+	config: ExperimentConfig,
+	regime_filter: Optional[Sequence[str]] = None,
+) -> None:
+	allowed = {tag.lower() for tag in regime_filter} if regime_filter else None
 	regimes = [
 		("clean", False, None),
 		("corrupted", True, CORRUPTION_SET),
 		("optimized", True, None),
 	]
 	for tag, use_corruption, corr_types in regimes:
+		if allowed and tag.lower() not in allowed:
+			continue
 		cfg = dataclass_replace(
 			config,
 			use_corrupted_validation=use_corruption,
