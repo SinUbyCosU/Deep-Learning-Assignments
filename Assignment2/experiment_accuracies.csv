@@ -1,0 +1,21 @@
+Dataset,Model,Experiment,Test_Set,Accuracy
+cifar10,vgg16,Exp 1 Clean Val,Clean Test,88.93
+cifar10,vgg16,Exp 1 Clean Val,Corrupted Test,59.38
+cifar10,vgg16,Exp 2 Corr Val,Clean Test,88.70
+cifar10,vgg16,Exp 2 Corr Val,Corrupted Test,58.81
+cifar10,vgg16,Exp 3 Opt Val,Clean Test,88.77
+cifar10,vgg16,Exp 3 Opt Val,Corrupted Test,60.60
+cifar10,vgg16,Exp 4 Feature Perturb,Clean Test,88.80
+cifar10,vgg16,Exp 4 Feature Perturb,Corrupted Test,60.45
+cifar10,resnet18,Exp 1 Clean Val,Clean Test,91.92
+cifar10,resnet18,Exp 1 Clean Val,Corrupted Test,52.50
+cifar10,resnet18,Exp 2 Corr Val,Clean Test,92.54
+cifar10,resnet18,Exp 2 Corr Val,Corrupted Test,55.34
+cifar10,resnet18,Exp 3 Opt Val,Clean Test,92.07
+cifar10,resnet18,Exp 3 Opt Val,Corrupted Test,54.68
+cifar10,resnet18,Exp 4 Feature Perturb,Clean Test,91.82
+cifar10,resnet18,Exp 4 Feature Perturb,Corrupted Test,53.20
+cifar10,convnext_tiny,Exp 1 Clean Val,Clean Test,93.77
+cifar10,convnext_tiny,Exp 1 Clean Val,Corrupted Test,58.92
+cifar10,convnext_tiny,Exp 2 Corr Val,Clean Test,96.65
+cifar10,convnext_tiny,Exp 2 Corr Val,Corrupted Test,60.40
