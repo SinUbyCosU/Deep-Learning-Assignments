@@ -12,6 +12,8 @@ Repository that tracks course assignments and accompanying training scripts.
 Install dependencies (PyTorch, torchvision, matplotlib, scikit-learn, imagecorruptions) and then run, for example:
 
 ```bash
+
+
 python Assignment2/Assignmnt2.py --dataset cifar10 --model resnet18 --epochs 10 --batch_size 64
 ```
 # Assignment 3
