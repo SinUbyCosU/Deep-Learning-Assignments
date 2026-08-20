@@ -17,6 +17,7 @@ Install dependencies (PyTorch, torchvision, matplotlib, scikit-learn, imagecorru
 python Assignment2/Assignmnt2.py --dataset cifar10 --model resnet18 --epochs 10 --batch_size 64
 ```
 # Assignment 3
+uh-oh
 # Assignment 4
 Additional flags:
 
