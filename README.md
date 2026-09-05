@@ -8,7 +8,6 @@ Repository that tracks course assignments and accompanying training scripts.
 - `Assignment2/Assignmnt2.py` – comprehensive robustness training pipeline covering CIFAR-10, Fashion-MNIST, and ImageNet-100 for VGG16, ResNet18, ConvNeXt-Tiny, ViT-B/16, and an MLP baseline.
 
 ## Assignment 2 quickstart
-
 Install dependencies (PyTorch, torchvision, matplotlib, scikit-learn, imagecorruptions) and then run, for example:
 
 ```bash
