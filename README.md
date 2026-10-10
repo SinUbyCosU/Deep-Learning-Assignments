@@ -19,7 +19,6 @@ python Assignment2/Assignmnt2.py --dataset cifar10 --model resnet18 --epochs 10 
 uh-oh
 # Assignment 4
 Additional flags:
-
 - `--use_corrupted_validation` – evaluate with a corrupted validation split.
 - `--mlp_validation_suite` – run the clean/corrupted/optimized validation experiments for the MLP baseline.
 - `--imagenet_root <path>` – required when training on ImageNet-100.
